@@ -1,9 +1,7 @@
 name: Boligportal Scraper
 
 on:
-  schedule:
-    - cron: '0 */6 * * *'  # Runs every 6 hours
-  workflow_dispatch:  # Allows manual triggering
+  workflow_dispatch:  # Allows manual triggering only
 
 jobs:
   scrape:
