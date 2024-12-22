@@ -205,7 +205,7 @@ async def main():
 
                                                     all_data.append(supabase_data)
 
-                                                    if len(all_data) >= 100:
+                                                    if len(all_data) >= 200:
                                                         try:
                                                             saavedatatosupabase(all_data)
                                                             all_data.clear()
