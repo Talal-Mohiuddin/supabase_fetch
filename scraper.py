@@ -19,7 +19,10 @@ key: str = os.getenv('SUPABASE_KEY')
 supabase: Client = create_client(url, key)
 
 
-
+DANISH_MONTHS = {
+    'januar': 1, 'februar': 2, 'marts': 3, 'april': 4, 'maj': 5, 'juni': 6,
+    'juli': 7, 'august': 8, 'september': 9, 'oktober': 10, 'november': 11, 'december': 12
+}
 # Fetch and parse a page asynchronously
 async def fetch_page(session, url):
     try:
@@ -54,6 +57,18 @@ def convert_to_boolean(value):
 
 def convert_relative_time(time_str):
     current_time = datetime.now()
+    
+    # Handle date format "DD. month"
+    for month in DANISH_MONTHS.keys():
+        if month in time_str.lower():
+            day = int(time_str.split('.')[0])
+            month_num = DANISH_MONTHS[month]
+            year = current_time.year
+            # If the date is in the future, use last year
+            date = datetime(year, month_num, day)
+            if date > current_time:
+                date = datetime(year - 1, month_num, day)
+            return date.strftime("%Y-%m-%d")
     
     if time_str == "I går":
         return (current_time - timedelta(days=1)).strftime("%Y-%m-%d")
