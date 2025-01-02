@@ -55,7 +55,9 @@ def convert_to_boolean(value):
 def convert_relative_time(time_str):
     current_time = datetime.now()
     
-    if 'min.' in time_str:
+    if time_str == "I går":
+        return (current_time - timedelta(days=1)).strftime("%Y-%m-%d")
+    elif 'min.' in time_str:
         minutes = int(time_str.split()[0])
         return (current_time - timedelta(minutes=minutes)).strftime("%Y-%m-%d")
     elif 'time' in time_str:
