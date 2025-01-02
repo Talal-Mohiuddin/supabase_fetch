@@ -5,6 +5,8 @@ from tqdm import tqdm
 import os
 import json
 from supabase import create_client, Client
+from datetime import datetime, timedelta
+
 
 # Configuration
 BASE_URL = "https://www.boligportal.dk/lejeboliger/"
@@ -50,6 +52,21 @@ def convert_to_boolean(value):
         return False  # Set to None if the value is "Ikke angivet"
     return None  # Return None for other unknown values
 
+def convert_relative_time(time_str):
+    current_time = datetime.now()
+    
+    if 'min.' in time_str:
+        minutes = int(time_str.split()[0])
+        return (current_time - timedelta(minutes=minutes)).strftime("%Y-%m-%d")
+    elif 'time' in time_str:
+        hours = int(time_str.split()[0])
+        return (current_time - timedelta(hours=hours)).strftime("%Y-%m-%d")
+    elif 'dag' in time_str or 'dage' in time_str:  # 
+        days = int(time_str.split()[0])
+        return (current_time - timedelta(days=days)).strftime("%Y-%m-%d")
+    else:
+        return time_str
+
 
 # Parse individual listing pages to extract details
 def parse_listing_details(html_content):
@@ -58,8 +75,9 @@ def parse_listing_details(html_content):
     title_tag = soup.find("span", class_="css-v34a4n")
     title = title_tag.get_text(strip=True) if title_tag else "No title found"
 
-    desc_tag = soup.find("div", class_="css-1j674uz")
-    description = desc_tag.get_text(strip=True) if desc_tag else "No description found"
+    date_tag = soup.find("div", class_="css-o9y6d5")
+    published_date = date_tag.get_text(strip=True) if date_tag else "No date found"
+    published_date = convert_relative_time(published_date)
 
     breadcrumb_tags = soup.find_all("a", class_="css-10zxfph")
     city = breadcrumb_tags[2].get_text(strip=True) if len(breadcrumb_tags) > 2 else "No city found"
@@ -109,7 +127,7 @@ def parse_listing_details(html_content):
 
     return {
         "title": title,
-        "description": description,
+        "published_date": published_date,
         "city": city,
         "images": images,
         "housing_details": housing_details,
@@ -172,8 +190,8 @@ async def main():
                                                 try:
                                                     supabase_data = {
                                                         "title": data["title"],
-                                                        "description": data["description"],
                                                         "city": data["city"],
+                                                        "published_date": data["published_date"],
                                                         "images": data["images"],
                                                         "boligtype": data["housing_details"].get("Boligtype", ""),
                                                         "storrelse": data["housing_details"].get("Størrelse", ""),
@@ -200,7 +218,7 @@ async def main():
                                                         "indflytningspris": data["rental_details"].get("Indflytningspris", ""),
                                                         "oprettelsesdato": data["rental_details"].get("Oprettelsesdato", "") if data["rental_details"].get("Oprettelsesdato") else None,
                                                         "sagsnr": data["rental_details"].get("Sagsnr.", ""),
-                                                        "url": url
+                                                        "url": url,
                                                     }
 
                                                     all_data.append(supabase_data)
