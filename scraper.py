@@ -16,8 +16,8 @@ BASE_URL = "https://www.boligportal.dk/lejeboliger/"
 OFFSET_STEP = 18  # Number of listings per page
 
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
