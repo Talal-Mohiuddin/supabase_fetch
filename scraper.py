@@ -7,6 +7,8 @@ import json
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 import ssl
+import random
+import time
 
 
 # Configuration
@@ -14,8 +16,8 @@ BASE_URL = "https://www.boligportal.dk/lejeboliger/"
 OFFSET_STEP = 18  # Number of listings per page
 
 
-SUPABASE_URL = "https://uicqpjrapyxmpupebalh.supabase.co"
-SUPABASE_KEY ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpY3FwanJhcHl4bXB1cGViYWxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgzNDc3NDMsImV4cCI6MjA1MzkyMzc0M30.rxcoxIh13Svzcw34bzwvMA9pydjt8h7V4Ne4hk56zJ8"
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
@@ -23,16 +25,41 @@ DANISH_MONTHS = {
     'januar': 1, 'februar': 2, 'marts': 3, 'april': 4, 'maj': 5, 'juni': 6,
     'juli': 7, 'august': 8, 'september': 9, 'oktober': 10, 'november': 11, 'december': 12
 }
+# Add list of user agents and headers
+USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:89.0) Gecko/20100101 Firefox/89.0'
+]
+
 # Fetch and parse a page asynchronously
-async def fetch_page(session, url):
-    try:
-        async with session.get(url) as response:
-            if response.status == 200:
-                return await response.text()
-            else:
-                print(f"Failed to fetch {url}, Status: {response.status}")
-    except Exception as e:
-        print(f"Error fetching {url}: {e}")
+async def fetch_page(session, url, max_retries=3, delay=5):
+    headers = {
+        'User-Agent': random.choice(USER_AGENTS),
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Cache-Control': 'max-age=0'
+    }
+    
+    for attempt in range(max_retries):
+        try:
+            async with session.get(url, headers=headers) as response:
+                if response.status == 200:
+                    return await response.text()
+                elif response.status == 403:
+                    wait_time = delay * (attempt + 1)
+                    print(f"Rate limited. Waiting {wait_time} seconds before retry {attempt + 1}/{max_retries}")
+                    await asyncio.sleep(wait_time)
+                else:
+                    print(f"Failed to fetch {url}, Status: {response.status}")
+                    await asyncio.sleep(delay)
+        except Exception as e:
+            print(f"Error fetching {url}: {e}")
+            await asyncio.sleep(delay)
     return None
 
 # Parse main listing page to extract individual listing URLs
@@ -173,8 +200,8 @@ async def main():
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
     
-    # Configure connection timeout
-    timeout = aiohttp.ClientTimeout(total=30)
+    # Configure connection timeout with longer duration
+    timeout = aiohttp.ClientTimeout(total=60)
     
     current_offset = 0
     all_data = []  # Initialize an empty list to hold data temporarily
@@ -182,7 +209,7 @@ async def main():
     print("Starting scraper. Press CTRL+C to stop and resume later.")
 
     try:
-        connector = aiohttp.TCPConnector(ssl=ssl_context)
+        connector = aiohttp.TCPConnector(ssl=ssl_context, limit=5)  # Limit concurrent connections
         async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
             with tqdm() as pbar:
                 while True:
