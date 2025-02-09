@@ -236,6 +236,15 @@ async def main():
                                                         "oprettelsesdato": data["rental_details"].get("Oprettelsesdato", "") if data["rental_details"].get("Oprettelsesdato") else None,
                                                         "sagsnr": data["rental_details"].get("Sagsnr.", ""),
                                                         "url": url,
+                                                        # New fields with default values
+                                                        "user_id": None,
+                                                        "is_our_listing": False,
+                                                        "address": None,
+                                                        "description": None,
+                                                        "availableFrom": None,
+                                                        "rentalPeriod": None,
+                                                        "status": False,
+                                                        "bathrooms": None
                                                     }
 
                                                     all_data.append(supabase_data)
