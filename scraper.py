@@ -7,53 +7,28 @@ import json
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 import ssl
-import random
-import time
+
 
 # Configuration
 BASE_URL = "https://www.boligportal.dk/lejeboliger/"
 OFFSET_STEP = 18  # Number of listings per page
 
 
-url: str = os.getenv('SUPABASE_URL')
-key: str = os.getenv('SUPABASE_KEY')
-supabase: Client = create_client(url, key)
+SUPABASE_URL = "https://uicqpjrapyxmpupebalh.supabase.co"
+SUPABASE_KEY ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpY3FwanJhcHl4bXB1cGViYWxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgzNDc3NDMsImV4cCI6MjA1MzkyMzc0M30.rxcoxIh13Svzcw34bzwvMA9pydjt8h7V4Ne4hk56zJ8"
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 DANISH_MONTHS = {
     'januar': 1, 'februar': 2, 'marts': 3, 'april': 4, 'maj': 5, 'juni': 6,
     'juli': 7, 'august': 8, 'september': 9, 'oktober': 10, 'november': 11, 'december': 12
 }
-
-# Add list of user agents to rotate
-USER_AGENTS = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:89.0) Gecko/20100101 Firefox/89.0',
-]
-
 # Fetch and parse a page asynchronously
 async def fetch_page(session, url):
-    headers = {
-        'User-Agent': random.choice(USER_AGENTS),
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-    }
-    
-    # Add random delay between requests
-    await asyncio.sleep(random.uniform(2, 5))
-    
     try:
-        async with session.get(url, headers=headers) as response:
+        async with session.get(url) as response:
             if response.status == 200:
                 return await response.text()
-            elif response.status == 403:
-                print(f"Rate limited. Waiting 30 seconds before retry...")
-                await asyncio.sleep(30)
-                return None
             else:
                 print(f"Failed to fetch {url}, Status: {response.status}")
     except Exception as e:
@@ -198,11 +173,10 @@ async def main():
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
     
-    # Increase timeout and add retry logic
-    timeout = aiohttp.ClientTimeout(total=60)
+    # Configure connection timeout
+    timeout = aiohttp.ClientTimeout(total=30)
     
     current_offset = 0
-    max_retries = 3
     all_data = []  # Initialize an empty list to hold data temporarily
 
     print("Starting scraper. Press CTRL+C to stop and resume later.")
@@ -213,9 +187,10 @@ async def main():
             with tqdm() as pbar:
                 while True:
                     try:
-                        # Ensure clean offset value without any commas
-                        clean_offset = str(current_offset).replace(',', '')
-                        page_url = f"{BASE_URL}?offset={clean_offset}"
+                        # Fix: Ensure clean offset value and proper URL construction
+                        clean_offset = str(current_offset).strip().rstrip(',')
+                        page_url = f"{BASE_URL.rstrip('/')}/?offset={clean_offset}"
+                        print(f"Fetching page: {page_url}")
                         html_content = await fetch_page(session, page_url)
 
                         if html_content:
