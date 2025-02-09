@@ -178,8 +178,9 @@ async def main():
             with tqdm() as pbar:
                 while True:
                     try:
-                        # Fix: Remove any trailing comma from the offset value
-                        page_url = f"{BASE_URL}?offset={str(current_offset).rstrip(',')}"
+                        # Ensure clean offset value without any commas
+                        clean_offset = str(current_offset).replace(',', '')
+                        page_url = f"{BASE_URL}?offset={clean_offset}"
                         html_content = await fetch_page(session, page_url)
 
                         if html_content:
