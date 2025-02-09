@@ -7,7 +7,8 @@ import json
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 import ssl
-
+import random
+import time
 
 # Configuration
 BASE_URL = "https://www.boligportal.dk/lejeboliger/"
@@ -23,12 +24,36 @@ DANISH_MONTHS = {
     'januar': 1, 'februar': 2, 'marts': 3, 'april': 4, 'maj': 5, 'juni': 6,
     'juli': 7, 'august': 8, 'september': 9, 'oktober': 10, 'november': 11, 'december': 12
 }
+
+# Add list of user agents to rotate
+USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:89.0) Gecko/20100101 Firefox/89.0',
+]
+
 # Fetch and parse a page asynchronously
 async def fetch_page(session, url):
+    headers = {
+        'User-Agent': random.choice(USER_AGENTS),
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+    }
+    
+    # Add random delay between requests
+    await asyncio.sleep(random.uniform(2, 5))
+    
     try:
-        async with session.get(url) as response:
+        async with session.get(url, headers=headers) as response:
             if response.status == 200:
                 return await response.text()
+            elif response.status == 403:
+                print(f"Rate limited. Waiting 30 seconds before retry...")
+                await asyncio.sleep(30)
+                return None
             else:
                 print(f"Failed to fetch {url}, Status: {response.status}")
     except Exception as e:
@@ -173,10 +198,11 @@ async def main():
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
     
-    # Configure connection timeout
-    timeout = aiohttp.ClientTimeout(total=30)
+    # Increase timeout and add retry logic
+    timeout = aiohttp.ClientTimeout(total=60)
     
     current_offset = 0
+    max_retries = 3
     all_data = []  # Initialize an empty list to hold data temporarily
 
     print("Starting scraper. Press CTRL+C to stop and resume later.")
