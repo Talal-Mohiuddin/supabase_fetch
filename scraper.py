@@ -6,6 +6,7 @@ import os
 import json
 from supabase import create_client, Client
 from datetime import datetime, timedelta
+import ssl
 
 
 # Configuration
@@ -13,7 +14,6 @@ BASE_URL = "https://www.boligportal.dk/lejeboliger/"
 OFFSET_STEP = 18  # Number of listings per page
 
 
-# Supabase client
 url: str = os.getenv('SUPABASE_URL')
 key: str = os.getenv('SUPABASE_KEY')
 supabase: Client = create_client(url, key)
@@ -168,13 +168,22 @@ def saavedatatosupabase(all_data):
 
 # Inside the main function, map the data to match Supabase schema
 async def main():
+    # Create SSL context that ignores verification
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+    
+    # Configure connection timeout
+    timeout = aiohttp.ClientTimeout(total=30)
+    
     current_offset = 0
     all_data = []  # Initialize an empty list to hold data temporarily
 
     print("Starting scraper. Press CTRL+C to stop and resume later.")
 
     try:
-        async with aiohttp.ClientSession() as session:
+        connector = aiohttp.TCPConnector(ssl=ssl_context)
+        async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
             with tqdm() as pbar:
                 while True:
                     try:
